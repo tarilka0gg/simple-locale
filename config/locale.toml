@@ -1,0 +1,9 @@
+# The language of Simple Linux programs (see https://github.com/tarilka0gg/simple-locale).
+#
+# lang     "auto" asks the system locale (LC_ALL, LC_MESSAGES, LANGUAGE, LANG); or a code: "en", "uk".
+# fallback the language when nothing else decides; English if left out.
+#
+# Put this file in ~/.config/simple-linux/locale.toml for one user, or /etc/simple-linux/locale.toml for the machine.
+# SIMPLE_LANG=uk in the environment beats both.
+lang = "auto"
+fallback = "en"

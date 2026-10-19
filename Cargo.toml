@@ -1,0 +1,13 @@
+[package]
+name = "simple-locale"
+version = "0.1.0"
+edition = "2024"
+description = "One language setting for all Simple Linux programs: a shared config file, the system locale, English by default"
+license = "MIT"
+repository = "https://github.com/tarilka0gg/simple-locale"
+readme = "README.md"
+keywords = ["locale", "i18n", "language"]
+categories = ["internationalization"]
+include = ["src/**", "js/simple-locale.js", "config/**", "README.md", "SPEC.md", "LICENSE"]
+
+[dependencies]
