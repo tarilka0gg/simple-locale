@@ -37,9 +37,15 @@ pub fn parse_config(text: &str) -> Config {
     let mut cfg = Config::default();
     for line in text.lines() {
         let line = line.split('#').next().unwrap_or("").trim();
-        let Some((key, value)) = line.split_once('=') else { continue };
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
         let value = value.trim().trim_matches('"').trim_matches('\'').trim();
-        let code = if value.is_empty() || value.eq_ignore_ascii_case("auto") { None } else { normalize(value) };
+        let code = if value.is_empty() || value.eq_ignore_ascii_case("auto") {
+            None
+        } else {
+            normalize(value)
+        };
         match key.trim() {
             "lang" => cfg.lang = code,
             "fallback" => cfg.fallback = code,
@@ -53,8 +59,16 @@ pub fn parse_config(text: &str) -> Config {
 pub fn normalize(tag: &str) -> Option<String> {
     let tag = tag.trim();
     let base = tag.split(['.', '@']).next().unwrap_or("");
-    let lang = base.split(['_', '-']).next().unwrap_or("").to_ascii_lowercase();
-    if lang.is_empty() || lang == "c" || lang == "posix" || !lang.chars().all(|c| c.is_ascii_alphabetic()) {
+    let lang = base
+        .split(['_', '-'])
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if lang.is_empty()
+        || lang == "c"
+        || lang == "posix"
+        || !lang.chars().all(|c| c.is_ascii_alphabetic())
+    {
         return None;
     }
     Some(lang)
@@ -65,7 +79,11 @@ pub fn config_paths() -> (Option<PathBuf>, PathBuf) {
     let user = std::env::var_os("XDG_CONFIG_HOME")
         .filter(|v| !v.is_empty())
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").filter(|v| !v.is_empty()).map(|h| PathBuf::from(h).join(".config")))
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .filter(|v| !v.is_empty())
+                .map(|h| PathBuf::from(h).join(".config"))
+        })
         .map(|d| d.join("simple-linux/locale.toml"));
     (user, PathBuf::from("/etc/simple-linux/locale.toml"))
 }
@@ -75,7 +93,13 @@ pub fn config_paths() -> (Option<PathBuf>, PathBuf) {
 pub fn resolve(supported: &[&str], override_var: Option<&str>) -> String {
     let (user, system) = config_paths();
     let read = |p: Option<PathBuf>| p.and_then(|p| std::fs::read_to_string(p).ok());
-    resolve_with(supported, override_var, |k| std::env::var(k).ok(), read(user).as_deref(), read(Some(system)).as_deref())
+    resolve_with(
+        supported,
+        override_var,
+        |k| std::env::var(k).ok(),
+        read(user).as_deref(),
+        read(Some(system)).as_deref(),
+    )
 }
 
 /// [`resolve`] with everything it reads handed in, so that the rules can be tested.
@@ -90,7 +114,11 @@ pub fn resolve_with(
     let user = user_config.map(parse_config).unwrap_or_default();
     let system = system_config.map(parse_config).unwrap_or_default();
 
-    let from_env = |name: &str| env(name).filter(|v| !v.is_empty()).and_then(|v| normalize(&v));
+    let from_env = |name: &str| {
+        env(name)
+            .filter(|v| !v.is_empty())
+            .and_then(|v| normalize(&v))
+    };
     if let Some(var) = override_var {
         if let Some(l) = pick(from_env(var)) {
             return l;
@@ -125,7 +153,11 @@ pub fn resolve_with(
             return l;
         }
     }
-    if supported.contains(&DEFAULT) { DEFAULT.to_string() } else { supported.first().copied().unwrap_or(DEFAULT).to_string() }
+    if supported.contains(&DEFAULT) {
+        DEFAULT.to_string()
+    } else {
+        supported.first().copied().unwrap_or(DEFAULT).to_string()
+    }
 }
 
 /// The language the configuration asks for, without looking at the locale: what a server tells its web page
@@ -133,7 +165,13 @@ pub fn resolve_with(
 pub fn configured(supported: &[&str], override_var: Option<&str>) -> Option<String> {
     let (user, system) = config_paths();
     let read = |p: Option<PathBuf>| p.and_then(|p| std::fs::read_to_string(p).ok());
-    configured_with(supported, override_var, |k| std::env::var(k).ok(), read(user).as_deref(), read(Some(system)).as_deref())
+    configured_with(
+        supported,
+        override_var,
+        |k| std::env::var(k).ok(),
+        read(user).as_deref(),
+        read(Some(system)).as_deref(),
+    )
 }
 
 /// [`configured`] with everything it reads handed in.
@@ -145,7 +183,11 @@ pub fn configured_with(
     system_config: Option<&str>,
 ) -> Option<String> {
     let pick = |code: Option<String>| code.filter(|c| supported.contains(&c.as_str()));
-    let from_env = |name: &str| env(name).filter(|v| !v.is_empty()).and_then(|v| normalize(&v));
+    let from_env = |name: &str| {
+        env(name)
+            .filter(|v| !v.is_empty())
+            .and_then(|v| normalize(&v))
+    };
     override_var
         .and_then(|v| pick(from_env(v)))
         .or_else(|| pick(from_env(ENV_LANG)))
@@ -167,7 +209,10 @@ mod tests {
     use std::collections::HashMap;
 
     fn env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
-        let m: HashMap<String, String> = pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        let m: HashMap<String, String> = pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
         move |k| m.get(k).cloned()
     }
     const SUP: &[&str] = &["en", "uk"];
@@ -186,49 +231,137 @@ mod tests {
     #[test]
     fn a_config_file_has_lang_and_fallback_and_auto_means_none() {
         let c = parse_config("# my setup\nlang = \"uk\"  # Ukrainian\nfallback='en'\nother = 1\n");
-        assert_eq!((c.lang.as_deref(), c.fallback.as_deref()), (Some("uk"), Some("en")));
+        assert_eq!(
+            (c.lang.as_deref(), c.fallback.as_deref()),
+            (Some("uk"), Some("en"))
+        );
         assert_eq!(parse_config("lang = \"auto\"\n").lang, None);
         assert_eq!(parse_config("").lang, None);
-        assert_eq!(parse_config("lang = uk_UA.UTF-8").lang.as_deref(), Some("uk"));
+        assert_eq!(
+            parse_config("lang = uk_UA.UTF-8").lang.as_deref(),
+            Some("uk")
+        );
     }
 
     #[test]
     fn english_when_nothing_says_otherwise() {
         assert_eq!(resolve_with(SUP, None, env(&[]), None, None), "en");
-        assert_eq!(resolve_with(SUP, None, env(&[("LANG", "C.UTF-8")]), None, None), "en");
-        assert_eq!(resolve_with(SUP, None, env(&[("LANG", "de_DE.UTF-8")]), None, None), "en", "unsupported: skipped");
+        assert_eq!(
+            resolve_with(SUP, None, env(&[("LANG", "C.UTF-8")]), None, None),
+            "en"
+        );
+        assert_eq!(
+            resolve_with(SUP, None, env(&[("LANG", "de_DE.UTF-8")]), None, None),
+            "en",
+            "unsupported: skipped"
+        );
     }
 
     #[test]
     fn the_system_locale_picks_ukrainian() {
-        assert_eq!(resolve_with(SUP, None, env(&[("LANG", "uk_UA.UTF-8")]), None, None), "uk");
-        assert_eq!(resolve_with(SUP, None, env(&[("LANGUAGE", "de:uk:en")]), None, None), "uk");
+        assert_eq!(
+            resolve_with(SUP, None, env(&[("LANG", "uk_UA.UTF-8")]), None, None),
+            "uk"
+        );
+        assert_eq!(
+            resolve_with(SUP, None, env(&[("LANGUAGE", "de:uk:en")]), None, None),
+            "uk"
+        );
         // LC_ALL beats LANG
-        assert_eq!(resolve_with(SUP, None, env(&[("LC_ALL", "en_US.UTF-8"), ("LANG", "uk_UA.UTF-8")]), None, None), "en");
+        assert_eq!(
+            resolve_with(
+                SUP,
+                None,
+                env(&[("LC_ALL", "en_US.UTF-8"), ("LANG", "uk_UA.UTF-8")]),
+                None,
+                None
+            ),
+            "en"
+        );
     }
 
     #[test]
     fn the_order_is_override_simple_lang_user_system_locale_fallback() {
-        let e = env(&[("USTAN_LANG", "en"), ("SIMPLE_LANG", "uk"), ("LANG", "uk_UA.UTF-8")]);
-        assert_eq!(resolve_with(SUP, Some("USTAN_LANG"), &e, Some("lang = \"uk\""), None), "en", "the program's own variable first");
-        assert_eq!(resolve_with(SUP, None, &e, Some("lang = \"en\""), None), "uk", "SIMPLE_LANG before the files");
+        let e = env(&[
+            ("USTAN_LANG", "en"),
+            ("SIMPLE_LANG", "uk"),
+            ("LANG", "uk_UA.UTF-8"),
+        ]);
+        assert_eq!(
+            resolve_with(SUP, Some("USTAN_LANG"), &e, Some("lang = \"uk\""), None),
+            "en",
+            "the program's own variable first"
+        );
+        assert_eq!(
+            resolve_with(SUP, None, &e, Some("lang = \"en\""), None),
+            "uk",
+            "SIMPLE_LANG before the files"
+        );
         let none = env(&[("LANG", "uk_UA.UTF-8")]);
-        assert_eq!(resolve_with(SUP, None, &none, Some("lang = \"en\""), Some("lang = \"uk\"")), "en", "user before system");
-        assert_eq!(resolve_with(SUP, None, &none, None, Some("lang = \"en\"")), "en", "a file before the locale");
-        assert_eq!(resolve_with(SUP, None, &none, Some("lang = \"auto\""), None), "uk", "auto asks the locale");
-        assert_eq!(resolve_with(SUP, None, env(&[]), Some("fallback = \"uk\""), None), "uk", "the fallback last");
+        assert_eq!(
+            resolve_with(
+                SUP,
+                None,
+                &none,
+                Some("lang = \"en\""),
+                Some("lang = \"uk\"")
+            ),
+            "en",
+            "user before system"
+        );
+        assert_eq!(
+            resolve_with(SUP, None, &none, None, Some("lang = \"en\"")),
+            "en",
+            "a file before the locale"
+        );
+        assert_eq!(
+            resolve_with(SUP, None, &none, Some("lang = \"auto\""), None),
+            "uk",
+            "auto asks the locale"
+        );
+        assert_eq!(
+            resolve_with(SUP, None, env(&[]), Some("fallback = \"uk\""), None),
+            "uk",
+            "the fallback last"
+        );
     }
 
     #[test]
     fn a_program_that_only_has_english_always_gets_it() {
-        assert_eq!(resolve_with(&["en"], None, env(&[("LANG", "uk_UA.UTF-8")]), Some("lang = \"uk\""), None), "en");
+        assert_eq!(
+            resolve_with(
+                &["en"],
+                None,
+                env(&[("LANG", "uk_UA.UTF-8")]),
+                Some("lang = \"uk\""),
+                None
+            ),
+            "en"
+        );
     }
 
     #[test]
     fn a_server_tells_its_page_only_what_the_configuration_says() {
-        assert_eq!(configured_with(SUP, None, env(&[("LANG", "uk_UA.UTF-8")]), None, None), None, "the locale is not configuration");
-        assert_eq!(configured_with(SUP, None, env(&[]), Some("lang = \"uk\""), None).as_deref(), Some("uk"));
-        assert_eq!(configured_with(SUP, Some("RING2ZERO_LANG"), env(&[("RING2ZERO_LANG", "en")]), Some("lang = \"uk\""), None).as_deref(), Some("en"));
+        assert_eq!(
+            configured_with(SUP, None, env(&[("LANG", "uk_UA.UTF-8")]), None, None),
+            None,
+            "the locale is not configuration"
+        );
+        assert_eq!(
+            configured_with(SUP, None, env(&[]), Some("lang = \"uk\""), None).as_deref(),
+            Some("uk")
+        );
+        assert_eq!(
+            configured_with(
+                SUP,
+                Some("RING2ZERO_LANG"),
+                env(&[("RING2ZERO_LANG", "en")]),
+                Some("lang = \"uk\""),
+                None
+            )
+            .as_deref(),
+            Some("en")
+        );
     }
 
     #[test]

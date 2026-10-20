@@ -1,5 +1,7 @@
 # simple-locale
 
+[![CI](https://github.com/tarilka0gg/simple-locale/actions/workflows/ci.yml/badge.svg)](https://github.com/tarilka0gg/simple-locale/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/tarilka0gg/simple-locale)](LICENSE) [![Changelog](https://img.shields.io/badge/changelog-CHANGELOG.md-blue)](CHANGELOG.md)
+
 One language setting for all Simple Linux programs. A tiny Rust crate and a JavaScript twin that answer one question, *which
 language should this program speak?*, the same way everywhere: a shared config file, the system locale, English by default.
 The full rule is in [SPEC.md](SPEC.md).
@@ -40,6 +42,10 @@ and in the page: `const lang = SimpleLocale.detect(['en', 'uk']); const t = Simp
 cargo test
 node --test js/test.mjs
 ```
+
+## Changelog
+
+What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
